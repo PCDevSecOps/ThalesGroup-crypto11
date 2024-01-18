@@ -87,7 +87,7 @@ A minimal configuration file for CloudHSM will look like this:
   "Path" : "/opt/cloudhsm/lib/libcloudhsm_pkcs11_standard.so",
   "TokenLabel": "cavium",
   "Pin" : "username:password",
-  "UseGCMIVFromHSM" : true,
+  "UseGCMIVFromHSM" : true
 }
 ```
 
@@ -145,7 +145,7 @@ The configuration looks like this:
 (At time of writing) OAEP is only partial and HMAC is unsupported, so expect test skips.
 
 Testing with nCipher nShield
---------------------
+----------------------------
 
 In all cases, it's worth enabling nShield PKCS#11 log output:
 
@@ -182,6 +182,25 @@ To protect keys with the module only, use the 'accelerator' token:
     }
 
 (At time of writing) GCM is not implemented, so expect test skips.
+
+Testing with a TPM and PKCS11
+-----------------------------
+
+You need to :
+
+- install a vTPM or a TPM on your machine
+- install the `libtpm2_pkcs11` library
+
+Configure :
+
+```json
+{
+  "Path" : "/usr/lib/x86_64-linux-gnu/libtpm2_pkcs11.so.1",
+  "TokenLabel": "mylabel", 
+  "Pin" : "mypin"
+
+}
+```
 
 Limitations
 ===========
