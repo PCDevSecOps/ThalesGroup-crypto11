@@ -109,6 +109,9 @@ type blockModeCloser struct {
 
 	// Cleanup function
 	cleanup func()
+
+	// Padding mode
+	padding bool
 }
 
 // newBlockModeCloser creates a new blockModeCloser for the chosen mechanism and mode.
@@ -119,10 +122,12 @@ func (key *SecretKey) newBlockModeCloser(mech uint, mode int, iv []byte, setFina
 		return nil, err
 	}
 
+	padding := mech == key.Cipher.CBCPKCSMech
 	bmc := &blockModeCloser{
 		session:   session,
 		blockSize: key.Cipher.BlockSize,
 		mode:      mode,
+		padding:   padding,
 		cleanup: func() {
 			key.context.pool.Put(session)
 		},
@@ -160,9 +165,10 @@ func (bmc *blockModeCloser) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("destination buffer too small")
 	}
-	if len(src)%bmc.blockSize != 0 {
+	if len(src)%bmc.blockSize != 0 && (! bmc.padding) {
 		panic("input is not a whole number of blocks")
 	}
+
 	var result []byte
 	var err error
 	switch bmc.mode {
