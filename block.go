@@ -68,10 +68,10 @@ func (key *SecretKey) Decrypt(dst, src []byte) {
 // Using this method for bulk operation is very inefficient, as it makes a round trip to the HSM
 // (which may be network-connected) for each block.
 // For more efficient operation, see NewCBCEncrypterCloser, NewCBCEncrypter or NewCBC.
-func (key *SecretKey) Encrypt(dst, src []byte) {
+func (key *SecretKey) Encrypt(mechanism uint, iv, dst, src []byte) {
 	var result []byte
 	if err := key.context.withSession(func(session *pkcs11Session) (err error) {
-		mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(key.Cipher.ECBMech, nil)}
+		mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(mechanism, iv)}
 		if err = session.ctx.EncryptInit(session.handle, mech, key.handle); err != nil {
 			return
 		}

@@ -173,9 +173,18 @@ func (bmc *blockModeCloser) CryptBlocks(dst, src []byte) {
 	var err error
 	switch bmc.mode {
 	case modeDecrypt:
-		result, err = bmc.session.ctx.DecryptUpdate(bmc.session.handle, src)
+		if bmc.padding {
+			result, err = bmc.session.ctx.Decrypt(bmc.session.handle, src)
+		} else {
+			result, err = bmc.session.ctx.DecryptUpdate(bmc.session.handle, src)
+		}
+
 	case modeEncrypt:
-		result, err = bmc.session.ctx.EncryptUpdate(bmc.session.handle, src)
+		if bmc.padding {
+			result, err = bmc.session.ctx.Encrypt(bmc.session.handle, src)
+		} else {
+			result, err = bmc.session.ctx.EncryptUpdate(bmc.session.handle, src)
+		}
 	}
 	if err != nil {
 		panic(err)
