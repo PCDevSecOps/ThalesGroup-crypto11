@@ -48,6 +48,14 @@ const (
 	modeDecrypt        // blockModeCloser is in decrypt mode
 )
 
+// getCBCMech returns the proper CBC mechanism between padding and without padding
+func (key *SecretKey) getCBCMech(padding bool) uint {
+	if padding {
+		return key.Cipher.CBCPKCSMech
+	}
+	return key.Cipher.CBCMech
+}
+
 // NewCBCEncrypter returns a cipher.BlockMode which encrypts in cipher block chaining mode, using the given key.
 // The length of iv must be the same as the key's block size.
 //
@@ -55,8 +63,8 @@ const (
 // If this is a problem for your application then use NewCBCEncrypterCloser instead.
 //
 // If that is not possible then adding calls to runtime.GC() may help.
-func (key *SecretKey) NewCBCEncrypter(iv []byte) (cipher.BlockMode, error) {
-	return key.newBlockModeCloser(key.Cipher.CBCMech, modeEncrypt, iv, true)
+func (key *SecretKey) NewCBCEncrypter(padding bool, iv []byte) (cipher.BlockMode, error) {
+	return key.newBlockModeCloser(key.getCBCMech(padding), modeEncrypt, iv, true)
 }
 
 // NewCBCDecrypter returns a cipher.BlockMode which decrypts in cipher block chaining mode, using the given key.
@@ -66,8 +74,8 @@ func (key *SecretKey) NewCBCEncrypter(iv []byte) (cipher.BlockMode, error) {
 // If this is a problem for your application then use NewCBCDecrypterCloser instead.
 //
 // If that is not possible then adding calls to runtime.GC() may help.
-func (key *SecretKey) NewCBCDecrypter(iv []byte) (cipher.BlockMode, error) {
-	return key.newBlockModeCloser(key.Cipher.CBCMech, modeDecrypt, iv, true)
+func (key *SecretKey) NewCBCDecrypter(padding bool, iv []byte) (cipher.BlockMode, error) {
+	return key.newBlockModeCloser(key.getCBCMech(padding), modeDecrypt, iv, true)
 }
 
 // NewCBCEncrypterCloser returns a  BlockModeCloser which encrypts in cipher block chaining mode, using the given key.
@@ -75,8 +83,8 @@ func (key *SecretKey) NewCBCDecrypter(iv []byte) (cipher.BlockMode, error) {
 //
 // Use of NewCBCEncrypterCloser rather than NewCBCEncrypter represents a commitment to call the Close() method
 // of the returned BlockModeCloser.
-func (key *SecretKey) NewCBCEncrypterCloser(iv []byte) (BlockModeCloser, error) {
-	return key.newBlockModeCloser(key.Cipher.CBCMech, modeEncrypt, iv, false)
+func (key *SecretKey) NewCBCEncrypterCloser(padding bool, iv []byte) (BlockModeCloser, error) {
+	return key.newBlockModeCloser(key.getCBCMech(padding), modeEncrypt, iv, false)
 }
 
 // NewCBCDecrypterCloser returns a  BlockModeCloser which decrypts in cipher block chaining mode, using the given key.
@@ -84,8 +92,8 @@ func (key *SecretKey) NewCBCEncrypterCloser(iv []byte) (BlockModeCloser, error) 
 //
 // Use of NewCBCDecrypterCloser rather than NewCBCEncrypter represents a commitment to call the Close() method
 // of the returned BlockModeCloser.
-func (key *SecretKey) NewCBCDecrypterCloser(iv []byte) (BlockModeCloser, error) {
-	return key.newBlockModeCloser(key.Cipher.CBCMech, modeDecrypt, iv, false)
+func (key *SecretKey) NewCBCDecrypterCloser(padding bool, iv []byte) (BlockModeCloser, error) {
+	return key.newBlockModeCloser(key.getCBCMech(padding), modeDecrypt, iv, false)
 }
 
 // blockModeCloser is a concrete implementation of BlockModeCloser supporting CBC.
