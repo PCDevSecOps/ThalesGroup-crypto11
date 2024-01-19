@@ -165,26 +165,23 @@ func (bmc *blockModeCloser) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("destination buffer too small")
 	}
+	// if the padding is not enabled, the pkcs11 encryption/decryption operation will fail.
+	// otherwise, if the source length is not a multiple of blocksize, pkcs11 will natively manage the padding.
 	if len(src)%bmc.blockSize != 0 && (! bmc.padding) {
-		panic("input is not a whole number of blocks")
+		panic("input length is not a multiple of blocksize")
+	}
+	// HOWEVER, the source length MUST be >16 bytes or the padding will fail
+	if len(src) < 16 {
+		panic("input length must be greater than 16 bytes")
 	}
 
 	var result []byte
 	var err error
 	switch bmc.mode {
 	case modeDecrypt:
-		if bmc.padding {
-			result, err = bmc.session.ctx.Decrypt(bmc.session.handle, src)
-		} else {
 			result, err = bmc.session.ctx.DecryptUpdate(bmc.session.handle, src)
-		}
-
 	case modeEncrypt:
-		if bmc.padding {
-			result, err = bmc.session.ctx.Encrypt(bmc.session.handle, src)
-		} else {
 			result, err = bmc.session.ctx.EncryptUpdate(bmc.session.handle, src)
-		}
 	}
 	if err != nil {
 		panic(err)
