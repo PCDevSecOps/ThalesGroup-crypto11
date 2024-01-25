@@ -62,21 +62,10 @@ func testHardSymmetric(t *testing.T, ctx *Context, keytype int, bits int) {
 		require.NoError(t, err)
 	})
 
-	t.Run("Block", func(t *testing.T) {
-		skipIfMechUnsupported(t, key.context, key.Cipher.ECBMech)
-		testSymmetricBlock(t, key, key2)
-	})
-
 	iv := make([]byte, key.BlockSize())
 	for i := range iv {
 		iv[i] = 0xF0
 	}
-
-	t.Run("CBC", func(t *testing.T) {
-		// By using cipher.NewCBCEncrypter, this test will actually use ECB mode on the key.
-		skipIfMechUnsupported(t, key2.context, key2.Cipher.ECBMech)
-		testSymmetricMode(t, cipher.NewCBCEncrypter(key2, iv), cipher.NewCBCDecrypter(key2, iv))
-	})
 
 	t.Run("CBCClose", func(t *testing.T) {
 		skipIfMechUnsupported(t, key2.context, key2.Cipher.CBCMech)
@@ -117,7 +106,7 @@ func testHardSymmetric(t *testing.T, ctx *Context, keytype int, bits int) {
 	})
 	if bits == 128 {
 		t.Run("GCMSoft", func(t *testing.T) {
-			aead, err := cipher.NewGCM(key2)
+			aead, err := key2.NewGCM()
 			require.NoError(t, err)
 			testAEADMode(t, aead, 127, 129)
 		})
@@ -288,12 +277,13 @@ func BenchmarkCBC(b *testing.B) {
 	plaintext := make([]byte, 65536)
 	ciphertext := make([]byte, 65536)
 
-	b.Run("Native", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			mode := cipher.NewCBCEncrypter(key, iv)
-			mode.CryptBlocks(ciphertext, plaintext)
-		}
-	})
+	// No longer supported
+	//b.Run("Native", func(b *testing.B) {
+	//	for i := 0; i < b.N; i++ {
+	//		mode := cipher.NewCBCEncrypter(key, iv)
+	//		mode.CryptBlocks(ciphertext, plaintext)
+	//	}
+	//})
 
 	b.Run("IdiomaticClose", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

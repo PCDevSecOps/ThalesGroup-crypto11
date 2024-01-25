@@ -48,14 +48,6 @@ const (
 	modeDecrypt        // blockModeCloser is in decrypt mode
 )
 
-// getCBCMech returns the proper CBC mechanism between padding and without padding
-func (key *SecretKey) getCBCMech(padding bool) uint {
-	if padding {
-		return key.Cipher.CBCPKCSMech
-	}
-	return key.Cipher.CBCMech
-}
-
 // NewCBCEncrypter returns a cipher.BlockMode which encrypts in cipher block chaining mode, using the given key.
 // The length of iv must be the same as the key's block size.
 //
@@ -63,8 +55,8 @@ func (key *SecretKey) getCBCMech(padding bool) uint {
 // If this is a problem for your application then use NewCBCEncrypterCloser instead.
 //
 // If that is not possible then adding calls to runtime.GC() may help.
-func (key *SecretKey) NewCBCEncrypter(padding bool, iv []byte) (cipher.BlockMode, error) {
-	return key.newBlockModeCloser(key.getCBCMech(padding), modeEncrypt, iv, true)
+func (key *SecretKey) NewCBCEncrypter(iv []byte) (cipher.BlockMode, error) {
+	return key.newBlockModeCloser(key.Cipher.CBCMech, modeEncrypt, iv, true)
 }
 
 // NewCBCDecrypter returns a cipher.BlockMode which decrypts in cipher block chaining mode, using the given key.
@@ -74,8 +66,8 @@ func (key *SecretKey) NewCBCEncrypter(padding bool, iv []byte) (cipher.BlockMode
 // If this is a problem for your application then use NewCBCDecrypterCloser instead.
 //
 // If that is not possible then adding calls to runtime.GC() may help.
-func (key *SecretKey) NewCBCDecrypter(padding bool, iv []byte) (cipher.BlockMode, error) {
-	return key.newBlockModeCloser(key.getCBCMech(padding), modeDecrypt, iv, true)
+func (key *SecretKey) NewCBCDecrypter(iv []byte) (cipher.BlockMode, error) {
+	return key.newBlockModeCloser(key.Cipher.CBCMech, modeDecrypt, iv, true)
 }
 
 // NewCBCEncrypterCloser returns a  BlockModeCloser which encrypts in cipher block chaining mode, using the given key.
@@ -83,8 +75,8 @@ func (key *SecretKey) NewCBCDecrypter(padding bool, iv []byte) (cipher.BlockMode
 //
 // Use of NewCBCEncrypterCloser rather than NewCBCEncrypter represents a commitment to call the Close() method
 // of the returned BlockModeCloser.
-func (key *SecretKey) NewCBCEncrypterCloser(padding bool, iv []byte) (BlockModeCloser, error) {
-	return key.newBlockModeCloser(key.getCBCMech(padding), modeEncrypt, iv, false)
+func (key *SecretKey) NewCBCEncrypterCloser(iv []byte) (BlockModeCloser, error) {
+	return key.newBlockModeCloser(key.Cipher.CBCMech, modeEncrypt, iv, false)
 }
 
 // NewCBCDecrypterCloser returns a  BlockModeCloser which decrypts in cipher block chaining mode, using the given key.
@@ -92,8 +84,8 @@ func (key *SecretKey) NewCBCEncrypterCloser(padding bool, iv []byte) (BlockModeC
 //
 // Use of NewCBCDecrypterCloser rather than NewCBCEncrypter represents a commitment to call the Close() method
 // of the returned BlockModeCloser.
-func (key *SecretKey) NewCBCDecrypterCloser(padding bool, iv []byte) (BlockModeCloser, error) {
-	return key.newBlockModeCloser(key.getCBCMech(padding), modeDecrypt, iv, false)
+func (key *SecretKey) NewCBCDecrypterCloser(iv []byte) (BlockModeCloser, error) {
+	return key.newBlockModeCloser(key.Cipher.CBCMech, modeDecrypt, iv, false)
 }
 
 // blockModeCloser is a concrete implementation of BlockModeCloser supporting CBC.
@@ -109,9 +101,6 @@ type blockModeCloser struct {
 
 	// Cleanup function
 	cleanup func()
-
-	// Padding mode
-	padding bool
 }
 
 // newBlockModeCloser creates a new blockModeCloser for the chosen mechanism and mode.
@@ -122,12 +111,10 @@ func (key *SecretKey) newBlockModeCloser(mech uint, mode int, iv []byte, setFina
 		return nil, err
 	}
 
-	padding := mech == key.Cipher.CBCPKCSMech
 	bmc := &blockModeCloser{
 		session:   session,
 		blockSize: key.Cipher.BlockSize,
 		mode:      mode,
-		padding:   padding,
 		cleanup: func() {
 			key.context.pool.Put(session)
 		},
@@ -165,23 +152,16 @@ func (bmc *blockModeCloser) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("destination buffer too small")
 	}
-	// if the padding is not enabled, the pkcs11 encryption/decryption operation will fail.
-	// otherwise, if the source length is not a multiple of blocksize, pkcs11 will natively manage the padding.
-	if len(src)%bmc.blockSize != 0 && (! bmc.padding) {
-		panic("input length is not a multiple of blocksize")
+	if len(src)%bmc.blockSize != 0 {
+		panic("input is not a whole number of blocks")
 	}
-	// HOWEVER, the source length MUST be >16 bytes or the padding will fail
-	if len(src) < 16 {
-		panic("input length must be greater than 16 bytes")
-	}
-
 	var result []byte
 	var err error
 	switch bmc.mode {
 	case modeDecrypt:
-			result, err = bmc.session.ctx.DecryptUpdate(bmc.session.handle, src)
+		result, err = bmc.session.ctx.DecryptUpdate(bmc.session.handle, src)
 	case modeEncrypt:
-			result, err = bmc.session.ctx.EncryptUpdate(bmc.session.handle, src)
+		result, err = bmc.session.ctx.EncryptUpdate(bmc.session.handle, src)
 	}
 	if err != nil {
 		panic(err)

@@ -173,3 +173,9 @@ func (c *Context) GenerateDSAKeyPairWithAttributes(public, private AttributeSet,
 func (signer *pkcs11PrivateKeyDSA) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	return signer.context.dsaGeneric(signer.handle, pkcs11.CKM_DSA, digest)
 }
+
+//func (signer *pkcs11PrivateKeyDSA) Public() crypto.PublicKey {
+//	panic("Not implemented")
+//}
+
+

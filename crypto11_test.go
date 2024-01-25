@@ -287,12 +287,7 @@ func TestInvalidMaxSessions(t *testing.T) {
 	require.Error(t, err)
 }
 
-// randomBytes returns 32 random bytes.
-func randomBytes() []byte {
-	result := make([]byte, 32)
-	rand.Read(result)
-	return result
-}
+
 
 func init() {
 	rand.Seed(time.Now().UnixNano())

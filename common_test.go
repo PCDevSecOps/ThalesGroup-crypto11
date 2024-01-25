@@ -1,8 +1,31 @@
 package crypto11
 
 import (
+	"crypto/rand"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
+
+
+
+func skipIfMechUnsupported(t *testing.T, ctx *Context, wantMech uint) {
+	mechs, err := ctx.ctx.GetMechanismList(ctx.slot)
+	require.NoError(t, err)
+
+	for _, mech := range mechs {
+		if mech.Mechanism == wantMech {
+			return
+		}
+	}
+	t.Skipf("mechanism 0x%x not supported", wantMech)
+}
+
+// randomBytes returns 32 random bytes.
+func randomBytes() []byte {
+	result := make([]byte, 32)
+	rand.Read(result)
+	return result
+}
 
 func TestULongMasking(t *testing.T) {
 	ulongData := uint(0x33221100ddccbbaa)
@@ -34,3 +57,24 @@ func TestULongMasking(t *testing.T) {
 		}
 	}
 }
+
+func generateTempKey(ctx *Context, keyType int, bits int) (*SecretKey, error) {
+	id := randomBytes()
+	return ctx.GenerateSecretKey(id, bits, Ciphers[keyType])
+}
+
+
+
+
+func makeIV(cipher *SymmetricCipher) ([]byte, error) {
+	iv := make([]byte, cipher.BlockSize)
+	_, err := rand.Read(iv)
+	return iv, err
+}
+
+func mypanic(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+

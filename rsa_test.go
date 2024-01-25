@@ -231,17 +231,7 @@ func testRsaEncryptionOAEP(t *testing.T, key crypto.Decrypter, hashFunction cryp
 	require.Equal(t, plaintext, decrypted)
 }
 
-func skipIfMechUnsupported(t *testing.T, ctx *Context, wantMech uint) {
-	mechs, err := ctx.ctx.GetMechanismList(ctx.slot)
-	require.NoError(t, err)
 
-	for _, mech := range mechs {
-		if mech.Mechanism == wantMech {
-			return
-		}
-	}
-	t.Skipf("mechanism 0x%x not supported", wantMech)
-}
 
 func TestRsaRequiredArgs(t *testing.T) {
 	ctx, err := ConfigureFromFile("config")

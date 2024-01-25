@@ -241,6 +241,12 @@ type Config struct {
 	// User PIN (password).
 	Pin string
 
+	// key ID
+	KeyId string
+
+	// key Label
+	KeyLabel string
+
 	// Maximum number of concurrent sessions to open. If zero, DefaultMaxSessions is used.
 	// Otherwise, the value specified must be at least 2.
 	MaxSessions int
@@ -283,7 +289,7 @@ var refCountMutex = sync.Mutex{}
 
 // Configure creates a new Context based on the supplied PKCS#11 configuration.
 func Configure(config *Config) (*Context, error) {
-	// Have we been given exactly one way to select a token?
+	// Check for exactly one way to select a token
 	var fields []string
 	if config.SlotNumber != nil {
 		fields = append(fields, "slot number")
@@ -298,6 +304,12 @@ func Configure(config *Config) (*Context, error) {
 		return nil, fmt.Errorf("config must specify exactly one way to select a token: none given")
 	} else if len(fields) > 1 {
 		return nil, fmt.Errorf("config must specify exactly one way to select a token: %v given", strings.Join(fields, ", "))
+	}
+
+	// Check for exactly one way to select a key
+	// These are optional values though. It is ok if none are provided.
+	if config.KeyLabel != "" && config.KeyId != "" {
+		return nil, fmt.Errorf("config must specify exactly one way to select a key")
 	}
 
 	if config.MaxSessions == 0 {
@@ -444,7 +456,7 @@ func loadConfigFromFile(configLocation string) (*Config, error) {
 	configDecoder := json.NewDecoder(file)
 	config := &Config{}
 	err = configDecoder.Decode(config)
-	return config, errors.WithMessage(err, "could decode config file:")
+	return config, errors.WithMessage(err, "could not decode config file:")
 }
 
 // Close releases resources used by the Context and unloads the PKCS #11 library if there are no other

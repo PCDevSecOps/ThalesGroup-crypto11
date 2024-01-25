@@ -71,6 +71,20 @@ list of the following options:
 in some crypto libraries). Needed for AWS CloudHSM.
 *  `DSA` - disables DSA tests. Needed for AWS CloudHSM (and any other tokens not supporting DSA).
 
+Unit test on one file
+---------
+
+```sh
+export DEPENDENCIES="rand.go attributes.go hmac.go block.go crypto11.go common.go keys.go blockmode_cmd.go rsa.go certificates.go ecdsa.go blockmode.go sessions.go aead.go dsa.go symmetric.go common_test.go"
+go test block_test.go $DEPENDENCIES
+```
+
+Remote debug :
+
+```sh
+dlv test --headless --listen=:2345 --api-version=2 --accept-multiclient block_test.go $DEPENDENCIES
+```
+
 Testing with Thales Luna HSM
 ----------------------------
 
@@ -198,7 +212,14 @@ Configure :
   "Path" : "/usr/lib/x86_64-linux-gnu/libtpm2_pkcs11.so.1",
   "TokenLabel": "mylabel", 
   "Pin" : "mypin"
+}
+```
 
+Optionally, also configure :
+
+```json
+{
+  "keyId": "mykey"
 }
 ```
 
