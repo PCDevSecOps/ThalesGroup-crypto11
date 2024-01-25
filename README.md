@@ -49,13 +49,21 @@ A minimal configuration file looks like this:
 {
   "Path" : "/usr/lib/softhsm/libsofthsm2.so",
   "TokenLabel": "token1",
-  "Pin" : "password"
+  "Pin" : "password",
+  "UseGCMIVFromHSM" : true,
+  "Tpm": false,
+  "SecretKeyLabel": "aes0",
+  "HmacKeyLabel": "hmac0"
 }
 ```
 
 - `Path` points to the library from your PKCS#11 vendor.
 - `TokenLabel` is the `CKA_LABEL` of the token you wish to use.
 - `Pin` is the password for the `CKU_USER` user.
+- `UseGCMIVFromHSM` generates the IV for GCM mechanism from the HSM
+- `Tpm` enables the TPM mode if the value is set to `true`, skipping incompatible tests
+- `SecretKeyLabel` points to a key for encryption/decryption operations in the tests if `Tpm` is true.
+- `HmacKeyLabel` points to a key for verification operations in the tests if `Tpm` is true.
 
 Testing Guidance
 ================
@@ -200,9 +208,13 @@ To protect keys with the module only, use the 'accelerator' token:
 Testing with a TPM and PKCS11
 -----------------------------
 
-You need to :
+You must know that tpm2-pkcs11 is much more limited than other libraries like softhsm2 for cryptographic operations.  
+The absence of the `C_GenerateKey` function support in tpm2-pkcs11 library is one example of the limitations.  
+As a consequence, all the tests involving the creation of keys will be skipped.
 
-- install a vTPM or a TPM on your machine
+To test with a TPM, you need to :
+
+- install a virtual TPM or use a TPM on your machine
 - install the `libtpm2_pkcs11` library
 
 Configure :
@@ -211,17 +223,11 @@ Configure :
 {
   "Path" : "/usr/lib/x86_64-linux-gnu/libtpm2_pkcs11.so.1",
   "TokenLabel": "mylabel", 
-  "Pin" : "mypin"
+  "Pin": "mypin"
 }
 ```
 
-Optionally, also configure :
-
-```json
-{
-  "keyId": "mykey"
-}
-```
+Beware that a lot of unit tests may fail in this case. You must fine-tune your usecase for TPM usage.
 
 Limitations
 ===========

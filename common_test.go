@@ -58,23 +58,9 @@ func TestULongMasking(t *testing.T) {
 	}
 }
 
-func generateTempKey(ctx *Context, keyType int, bits int) (*SecretKey, error) {
-	id := randomBytes()
-	return ctx.GenerateSecretKey(id, bits, Ciphers[keyType])
-}
-
-
-
-
 func makeIV(cipher *SymmetricCipher) ([]byte, error) {
 	iv := make([]byte, cipher.BlockSize)
 	_, err := rand.Read(iv)
 	return iv, err
-}
-
-func mypanic(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
 

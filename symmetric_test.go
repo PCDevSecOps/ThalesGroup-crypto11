@@ -124,63 +124,6 @@ func testHardSymmetric(t *testing.T, ctx *Context, keytype int, bits int) {
 
 }
 
-func testSymmetricBlock(t *testing.T, encryptKey cipher.Block, decryptKey cipher.Block) {
-	// The functions in cipher.Block have no error returns, so they panic if they encounter
-	// a problem. We catch these panics here, so the test can fail nicely
-	defer func() {
-		if cause := recover(); cause != nil {
-			t.Fatalf("Caught panic: %q", cause)
-		}
-	}()
-
-	b := encryptKey.BlockSize()
-	input := make([]byte, 3*b)
-	middle := make([]byte, 3*b)
-	output := make([]byte, 3*b)
-	// Set a recognizable pattern in the buffers
-	for i := 0; i < 3*b; i++ {
-		input[i] = byte(i)
-		middle[i] = byte(i + 3*b)
-		output[i] = byte(i + 6*b)
-	}
-	encryptKey.Encrypt(middle, input) // middle[:b] = encrypt(input[:b])
-	if bytes.Equal(input[:b], middle[:b]) {
-		t.Errorf("crypto11.PKCSSecretKey.Encrypt: identity transformation")
-		return
-	}
-	matches := 0
-	for i := 0; i < b; i++ {
-		if middle[i] == byte(i+3*b) {
-			matches++
-		}
-	}
-	if matches == b {
-		t.Errorf("crypto11.PKCSSecretKey.Encrypt: didn't modify destination")
-		return
-	}
-	for i := 0; i < 3*b; i++ {
-		if input[i] != byte(i) {
-			t.Errorf("crypto11.PKCSSecretKey.Encrypt: corrupted source")
-			return
-		}
-		if i >= b && middle[i] != byte(i+3*b) {
-			t.Errorf("crypto11.PKCSSecretKey.Encrypt: corrupted destination past blocksize")
-			return
-		}
-	}
-	decryptKey.Decrypt(output, middle) // output[:b] = decrypt(middle[:b])
-	if !bytes.Equal(input[:b], output[:b]) {
-		t.Errorf("crypto11.PKCSSecretKey.Decrypt: plaintext wrong")
-		return
-	}
-	for i := 0; i < 3*b; i++ {
-		if i >= b && output[i] != byte(i+6*b) {
-			t.Errorf("crypto11.PKCSSecretKey.Decrypt: corrupted destination past blocksize")
-			return
-		}
-	}
-}
-
 func testSymmetricMode(t *testing.T, encrypt cipher.BlockMode, decrypt cipher.BlockMode) {
 	// The functions in cipher.Block have no error returns, so they panic if they encounter
 	// a problem. We catch these panics here, so the test can fail nicely

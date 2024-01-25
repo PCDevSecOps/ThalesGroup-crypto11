@@ -58,42 +58,46 @@ func TestErrorAfterClosed(t *testing.T) {
 	_, err = ctx.FindKeyPairsWithAttributes(NewAttributeSet())
 	assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateSecretKey(bytes, 256, CipherAES)
-	assert.Equal(t, errClosed, err)
+	// skip if tpm is used
+	if !ctx.cfg.Tpm {
+		_, err = ctx.GenerateSecretKey(bytes, 256, CipherAES)
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateSecretKeyWithLabel(bytes, bytes, 256, CipherAES)
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.GenerateSecretKeyWithLabel(bytes, bytes, 256, CipherAES)
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateRSAKeyPair(bytes, 2048)
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.GenerateRSAKeyPair(bytes, 2048)
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateRSAKeyPairWithLabel(bytes, bytes, 2048)
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.GenerateRSAKeyPairWithLabel(bytes, bytes, 2048)
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateDSAKeyPair(bytes, dsaSizes[dsa.L1024N160])
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.GenerateDSAKeyPair(bytes, dsaSizes[dsa.L1024N160])
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateDSAKeyPairWithLabel(bytes, bytes, dsaSizes[dsa.L1024N160])
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.GenerateDSAKeyPairWithLabel(bytes, bytes, dsaSizes[dsa.L1024N160])
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateECDSAKeyPair(bytes, elliptic.P224())
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.GenerateECDSAKeyPair(bytes, elliptic.P224())
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.GenerateECDSAKeyPairWithLabel(bytes, bytes, elliptic.P224())
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.GenerateECDSAKeyPairWithLabel(bytes, bytes, elliptic.P224())
+		assert.Equal(t, errClosed, err)
 
-	_, err = ctx.NewRandomReader()
-	assert.Equal(t, errClosed, err)
+		_, err = ctx.NewRandomReader()
+		assert.Equal(t, errClosed, err)
 
-	cert := generateRandomCert(t)
+		cert := generateRandomCert(t)
 
-	err = ctx.ImportCertificate(bytes, cert)
-	assert.Equal(t, errClosed, err)
+		err = ctx.ImportCertificate(bytes, cert)
+		assert.Equal(t, errClosed, err)
 
-	err = ctx.ImportCertificateWithLabel(bytes, bytes, cert)
-	assert.Equal(t, errClosed, err)
+		err = ctx.ImportCertificateWithLabel(bytes, bytes, cert)
+		assert.Equal(t, errClosed, err)
 
-	err = ctx.ImportCertificateWithAttributes(NewAttributeSet(), cert)
+		err = ctx.ImportCertificateWithAttributes(NewAttributeSet(), cert)
+	}
+
 	assert.Equal(t, errClosed, err)
 
 	_, err = ctx.GetAttribute(nil, CkaLabel)

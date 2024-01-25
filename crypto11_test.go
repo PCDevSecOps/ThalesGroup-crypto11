@@ -269,7 +269,7 @@ func TestNoLogin(t *testing.T) {
 	ctx, err := Configure(cfg)
 	require.NoError(t, err)
 
-	_, err = ctx.GenerateSecretKey(randomBytes(), 256, CipherAES)
+	_, err = ctx.getSession()
 	require.Error(t, err)
 
 	p11Err, ok := err.(pkcs11.Error)

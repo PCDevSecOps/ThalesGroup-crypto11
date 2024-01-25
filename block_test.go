@@ -22,6 +22,7 @@
 package crypto11
 
 import (
+	"crypto/rand"
 	"github.com/miekg/pkcs11"
 	"testing"
 
@@ -34,22 +35,25 @@ func TestBlock(t *testing.T) {
 	defer func() {
 		require.NoError(t, ctx.Close())
 	}()
-	// generate a new temporary key for encryption / decryption operations in the pkcs11 store
-	keyType := pkcs11.CKK_AES
-	keySize := 256
 
-	// get a key for the tests
-	key, err := ctx.FindKey(nil, []byte(ctx.cfg.KeyLabel))
-	if key == nil || err != nil {
-		if key, err = generateTempKey(ctx, keyType, keySize); err != nil {
-			panic(err)
-		}
+	// get or generate a new temporary key for encryption / decryption operations in the pkcs11 store
+	var key *SecretKey
+	if ctx.cfg.Tpm {
+		key, err = ctx.FindKey(nil, []byte(ctx.cfg.SecretKeyLabel))
+	} else {
+		keyType := pkcs11.CKK_AES
+		keySize := 256
+		id := make([]byte, 16)
+		rand.Read(id)
+		key, err = ctx.GenerateSecretKeyWithLabel(id, []byte("testblock"), keySize, Ciphers[keyType])
 		defer key.Delete()
 	}
+	if err != nil {
+		panic(err)
+	}
 
-
-
-	t.Run("AES256 CBC PAD", func(t *testing.T) { testBlockCBCPadding(t, key) })
+	t.Run("AES256 CBC PAD", func(t *testing.T) {
+		testBlockCBCPadding(t, key) })
 	//t.Run("AES256", func(t *testing.T) { test2(t) })
 }
 

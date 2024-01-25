@@ -219,6 +219,17 @@ func (c *Context) findToken(slots []uint, serial, label string, slotNumber *int)
 	return 0, nil, errTokenNotFound
 }
 
+// GetSecretKey returns the key pointed by 'SecretKeyLabel' in the configuration if 'Tpm' is set to true.
+// Otherwise, it provides a new generated key (not suitable for tpm2-pkcs11 lib).
+// You must provide 'id' or 'label', not both.
+func (c *Context) GetSecretKey(id, label []byte, bits int, cipher *SymmetricCipher) (*SecretKey, error) {
+	if c.cfg.Tpm {
+		return c.FindKey(nil, []byte(c.cfg.SecretKeyLabel))
+	} else {
+		return c.GenerateSecretKeyWithLabel(id, label, bits, cipher)
+	}
+}
+
 // Config holds PKCS#11 configuration information.
 //
 // A token may be selected by label, serial number or slot number. It is an error to specify
@@ -240,12 +251,6 @@ type Config struct {
 
 	// User PIN (password).
 	Pin string
-
-	// key ID
-	KeyId string
-
-	// key Label
-	KeyLabel string
 
 	// Maximum number of concurrent sessions to open. If zero, DefaultMaxSessions is used.
 	// Otherwise, the value specified must be at least 2.
@@ -271,6 +276,15 @@ type Config struct {
 	GCMIVLength int
 
 	GCMIVFromHSMControl GCMIVFromHSMConfig
+
+	// Tpm enables the TPM mode if the value is set to `true`, skipping incompatible tests.
+	Tpm bool
+
+	// SecretKeyLabel points to a key for encryption/decryption operations in the tests if `Tpm` is true.
+	SecretKeyLabel string
+
+	// HmacKeyLabel points to a key for verification operations in the tests if `Tpm` is true.
+	HmacKeyLabel string
 }
 
 type GCMIVFromHSMConfig struct {
@@ -306,12 +320,6 @@ func Configure(config *Config) (*Context, error) {
 		return nil, fmt.Errorf("config must specify exactly one way to select a token: %v given", strings.Join(fields, ", "))
 	}
 
-	// Check for exactly one way to select a key
-	// These are optional values though. It is ok if none are provided.
-	if config.KeyLabel != "" && config.KeyId != "" {
-		return nil, fmt.Errorf("config must specify exactly one way to select a key")
-	}
-
 	if config.MaxSessions == 0 {
 		config.MaxSessions = DefaultMaxSessions
 	}
@@ -325,6 +333,10 @@ func Configure(config *Config) (*Context, error) {
 
 	if config.GCMIVLength == 0 {
 		config.GCMIVLength = DefaultGCMIVLength
+	}
+
+	if config.Tpm && (config.SecretKeyLabel == "" || config.HmacKeyLabel == "") {
+		return nil, fmt.Errorf("config must specify 'SecretKeyLabel' and 'HmacKeyLabel' if 'Tpm' is true")
 	}
 
 	instance := &Context{
