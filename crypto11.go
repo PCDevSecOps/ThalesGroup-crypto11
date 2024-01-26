@@ -335,10 +335,6 @@ func Configure(config *Config) (*Context, error) {
 		config.GCMIVLength = DefaultGCMIVLength
 	}
 
-	if config.Tpm && (config.SecretKeyLabel == "" || config.HmacKeyLabel == "") {
-		return nil, fmt.Errorf("config must specify 'SecretKeyLabel' and 'HmacKeyLabel' if 'Tpm' is true")
-	}
-
 	instance := &Context{
 		cfg: config,
 		ctx: pkcs11.New(config.Path),

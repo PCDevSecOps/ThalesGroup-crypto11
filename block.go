@@ -56,7 +56,7 @@ func checkIvSize(key *SecretKey, iv []byte) error {
 // Using this method for bulk operation is very inefficient, as it makes a round trip to the HSM
 // (which may be network-connected) for each block.
 // For more efficient operation, see NewCBCDecrypterCloser, NewCBCDecrypter.
-func (key *SecretKey) Decrypt(mechanism uint, iv, ciphertext []byte) ([]byte, error) {
+func (key *SecretKey) decrypt(mechanism uint, iv, ciphertext []byte) ([]byte, error) {
 	if err := checkIvSize(key, iv); err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (key *SecretKey) Decrypt(mechanism uint, iv, ciphertext []byte) ([]byte, er
 // Using this method for bulk operation is very inefficient, as it makes a round trip to the HSM
 // (which may be network-connected) for each block.
 // For more efficient operation, see NewCBCEncrypterCloser, NewCBCEncrypter or NewCBC.
-func (key *SecretKey) Encrypt(mechanism uint, iv, cleartext []byte) ([]byte, error) {
+func (key *SecretKey) encrypt(mechanism uint, iv, cleartext []byte) ([]byte, error) {
 	if err := checkIvSize(key, iv); err != nil {
 		return nil, err
 	}
@@ -105,4 +105,28 @@ func (key *SecretKey) Encrypt(mechanism uint, iv, cleartext []byte) ([]byte, err
 		return nil, err
 	}
 	return result, nil
+}
+
+func (key *SecretKey) EncryptCBC(iv, cleartext []byte) ([]byte, error) {
+	if len(cleartext) != key.Cipher.BlockSize {
+		return nil, fmt.Errorf("wrong cleartext size. expected to match block size with '%d' bytes but was '%d' " +
+			"bytes", key.Cipher.BlockSize, len(cleartext))
+	}
+	return key.encrypt(key.Cipher.CBCMech, iv, cleartext)
+}
+
+func (key *SecretKey) DecryptCBC(iv, ciphertext []byte) ([]byte, error) {
+	if len(ciphertext) != key.Cipher.BlockSize {
+		return nil, fmt.Errorf("wrong ciphertext size. expected to match block size with '%d' bytes but was '%d' " +
+			"bytes", key.Cipher.BlockSize, len(ciphertext))
+	}
+	return key.decrypt(key.Cipher.CBCMech, iv, ciphertext)
+}
+
+func (key *SecretKey) EncryptCBCPadding(iv, cleartext []byte) ([]byte, error) {
+	return key.encrypt(key.Cipher.CBCPKCSMech, iv, cleartext)
+}
+
+func (key *SecretKey) DecryptCBCPadding(iv, ciphertext []byte) ([]byte, error) {
+	return key.decrypt(key.Cipher.CBCPKCSMech, iv, ciphertext)
 }
