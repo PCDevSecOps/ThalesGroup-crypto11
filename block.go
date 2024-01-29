@@ -22,111 +22,155 @@
 package crypto11
 
 import (
+	"crypto/cipher"
 	"fmt"
+	"log"
 
 	"github.com/miekg/pkcs11"
 )
 
-// Block
-// Use these function to encrypt/decrypt cleartext/ciphertext in one go.
+// BlockManager
+// Use its functions to encrypt/decrypt cleartext/ciphertext in one go.
 // This approach is simple but lack of efficiency for bulk operations.
-// For a more efficient approach, check BlockMode instead.
+// For a more efficient approach, check BlockModeCloser instead.
+type BlockManager interface {
+	cipher.Block
+}
+
+type blockManager struct {
+	// PKCS#11 session to use
+	session *pkcs11Session
+
+	// The PKCS#11 object key keyHandle to use
+	keyHandle *pkcs11.ObjectHandle
+
+	// Cipher block size
+	blockSize int
+
+	// Initialization vector
+	iv []byte
+
+	// block mechanism for encryption / decryption
+	mechanism uint
+}
+
+// newBlockManager creates a new manager for block encryption/decryption operations
+func (key *SecretKey) newBlockManager(mechanism uint, iv []byte) (*blockManager, error) {
+	// pkcs11 contexte
+	session, err := key.context.getSession()
+	
+	if err != nil {
+		return nil, err
+	}
+	// iv
+	if len(iv) != key.Cipher.BlockSize {
+		return nil, fmt.Errorf("iv should have the same size as the algorithm block size. iv length was '%d' but "+
+			"block size is '%d'", len(iv), key.Cipher.BlockSize)
+	}
+	// build block manager
+	return &blockManager{
+		session:   session,
+		keyHandle: &key.handle,
+		blockSize: key.Cipher.BlockSize,
+		iv:        iv,
+		mechanism: mechanism,
+	}, nil
+}
+
+// NewBlockManagerCBC creates a new manager for block encryption/decryption operations using AES CBC without padding
+// With this manager, be careful with the size of your
+func (key *SecretKey) NewBlockManagerCBC(iv []byte) (BlockManager, error) {
+	return key.newBlockManager(key.Cipher.CBCMech, iv)
+}
 
 // BlockSize returns the cipher's block size in bytes.
+func (bm *blockManager) BlockSize() int {
+	return bm.blockSize
+}
+
+// NewBlockManagerCBCPadding creates a new manager for block encryption/decryption operations using AES CBC with padding
+func (key *SecretKey) NewBlockManagerCBCPadding(iv []byte) (BlockManager, error) {
+	return key.newBlockManager(key.Cipher.CBCPKCSMech, iv)
+}
+
+// BlockSize returns the cipher's block size in bytes.
+// DEPRECATED : you should use the BlockManager's method instead.
 func (key *SecretKey) BlockSize() int {
 	return key.Cipher.BlockSize
 }
 
-func checkIvSize(key *SecretKey, iv []byte) error {
-	if len(iv) != key.Cipher.BlockSize {
-		return fmt.Errorf("iv should have the same size as the algorithm block size. iv length was '%d' but " +
-			"block size is '%d'", len(iv), key.Cipher.BlockSize)
-	}
-	return nil
-}
-
 // Decrypt decrypts in one go the ciphertext into a clear text in return.
 // The ciphertext and the output buffers must overlap entirely or not at all.
-// The IV given to decrypt should :
-//   - be the same as the IV used to encrypt the original text in the ciphertext
-//   - have the same size as the block size of the cipher for the given key.
+//
 // The mechanism given can be any symmetric block mechanism supported by this implementation in key.Cipher.
 // Beware ! If you are not using a padding mechanism, the size of the ciphertext should be equal to the block size.
+//
+// Due to Block interface, this function does not return an error if the decryption fails.
+// Logs are here to help to understand why such an operation should fail, but you should manage the different scenario
+// of failure by yourself at upper stage.
 //
 // Using this method for bulk operation is very inefficient, as it makes a round trip to the HSM
 // (which may be network-connected) for each block.
 // For more efficient operation, see NewCBCDecrypterCloser, NewCBCDecrypter.
-func (key *SecretKey) decrypt(mechanism uint, iv, ciphertext []byte) ([]byte, error) {
-	if err := checkIvSize(key, iv); err != nil {
-		return nil, err
-	}
-	var result []byte
-	if err := key.context.withSession(func(session *pkcs11Session) (err error) {
-		mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(mechanism, iv)}
-		if err = session.ctx.DecryptInit(session.handle, mech, key.handle); err != nil {
-			return
-		}
-		if result, err = session.ctx.Decrypt(session.handle, ciphertext); err != nil {
-			return
-		}
+func (bm *blockManager) Decrypt(dst, src []byte) {
+	// mechanism
+	if bm.mechanism != CipherAES.CBCPKCSMech && len(src) != bm.blockSize {
+		log.Printf("warning the size of the source buffer was '%d' bytes but must match a multiple of the block size of the current cipher: '%d' bytes", len(src), bm.blockSize)
 		return
-	}); err != nil {
-		return nil, err
 	}
-	return result, nil
+	mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(bm.mechanism, bm.iv)}
+	// initialization of the decryption
+	if err := bm.session.ctx.DecryptInit(bm.session.handle, mech, *bm.keyHandle); err != nil {
+		log.Print("error during the initialization of the decryption for this session:", err)
+		return
+	}
+	// decryption
+	if result, err := bm.session.ctx.Decrypt(bm.session.handle, src); err != nil {
+		log.Print("error during the decryption for this session:", err)
+		return
+	} else {
+		if len(dst) < len(result) {
+			log.Printf("warning the size of the desination buffer was '%d' bytes but is too small for result buffer size of '%d' bytes", len(dst), len(result))
+			return
+		}
+		copy(dst[:len(result)], result)
+	}
 }
 
 // Encrypt encrypts in one go the clear text into a ciphertext in return.
 // The ciphertext and the output buffers must overlap entirely or not at all.
-// The IV given to decrypt should :
-//   - be the same as the IV used to encrypt the original text in the ciphertext
-//   - have the same size as the block size of the cipher for the given key.
+//
 // The mechanism given can be any symmetric block mechanism supported by this implementation in key.Cipher.
 // Beware ! If you are not using a padding mechanism, the size of the cleartext should be equal to the block size.
+//
+// Due to Block interface, this function does not return an error if the encryption fails.
+// Logs are here to help to understand why such an operation should fail, but you should manage the different scenario
+// of failure by yourself at upper stage.
 //
 // Using this method for bulk operation is very inefficient, as it makes a round trip to the HSM
 // (which may be network-connected) for each block.
 // For more efficient operation, see NewCBCEncrypterCloser, NewCBCEncrypter or NewCBC.
-func (key *SecretKey) encrypt(mechanism uint, iv, cleartext []byte) ([]byte, error) {
-	if err := checkIvSize(key, iv); err != nil {
-		return nil, err
-	}
-	var result []byte
-	if err := key.context.withSession(func(session *pkcs11Session) (err error) {
-		mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(mechanism, iv)}
-		if err = session.ctx.EncryptInit(session.handle, mech, key.handle); err != nil {
-			return
-		}
-		if result, err = session.ctx.Encrypt(session.handle, cleartext); err != nil {
-			return
-		}
+func (bm *blockManager) Encrypt(dst, src []byte) {
+	// mechanism
+	if bm.mechanism != CipherAES.CBCPKCSMech && len(src) != bm.blockSize {
+		log.Printf("the size of the source buffer is '%d' bytes but must match a multiple of the block size of the current cipher: '%d' bytes", len(src), bm.blockSize)
 		return
-	}); err != nil {
-		return nil, err
 	}
-	return result, nil
-}
-
-func (key *SecretKey) EncryptCBC(iv, cleartext []byte) ([]byte, error) {
-	if len(cleartext) != key.Cipher.BlockSize {
-		return nil, fmt.Errorf("wrong cleartext size. expected to match block size with '%d' bytes but was '%d' " +
-			"bytes", key.Cipher.BlockSize, len(cleartext))
+	mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(bm.mechanism, bm.iv)}
+	// initialization of the encryption
+	if err := bm.session.ctx.EncryptInit(bm.session.handle, mech, *bm.keyHandle); err != nil {
+		log.Print("error during the initialization of the decryption for this session:", err)
+		return
 	}
-	return key.encrypt(key.Cipher.CBCMech, iv, cleartext)
-}
-
-func (key *SecretKey) DecryptCBC(iv, ciphertext []byte) ([]byte, error) {
-	if len(ciphertext) != key.Cipher.BlockSize {
-		return nil, fmt.Errorf("wrong ciphertext size. expected to match block size with '%d' bytes but was '%d' " +
-			"bytes", key.Cipher.BlockSize, len(ciphertext))
+	// encryption
+	if result, err := bm.session.ctx.Encrypt(bm.session.handle, src); err != nil {
+		log.Print("error during the decryption for this session:", err)
+		return
+	} else {
+		if len(dst) < len(result) {
+			log.Printf("the size of the desination buffer is '%d' bytes but is too small for result buffer size of '%d' bytes", len(dst), len(result))
+			return
+		}
+		copy(dst[:len(result)], result)
 	}
-	return key.decrypt(key.Cipher.CBCMech, iv, ciphertext)
-}
-
-func (key *SecretKey) EncryptCBCPadding(iv, cleartext []byte) ([]byte, error) {
-	return key.encrypt(key.Cipher.CBCPKCSMech, iv, cleartext)
-}
-
-func (key *SecretKey) DecryptCBCPadding(iv, ciphertext []byte) ([]byte, error) {
-	return key.decrypt(key.Cipher.CBCPKCSMech, iv, ciphertext)
 }

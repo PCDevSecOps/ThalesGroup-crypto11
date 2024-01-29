@@ -150,7 +150,7 @@ const (
 // NewAttribute is a helper function that populates a new Attribute for common data types. This function will
 // return an error if value is not of type bool, int, uint, string, []byte or time.Time (or is nil).
 func NewAttribute(attributeType AttributeType, value interface{}) (a *Attribute, err error) {
-	// catch any panics from the pkcs11.NewAttribute() call to handle the error cleanly
+	// catch any panics from the pkcs11.NewAttribute() call to keyHandle the error cleanly
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.New(fmt.Sprintf("failed creating Attribute: %v", r))
