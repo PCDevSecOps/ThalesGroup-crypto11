@@ -1,4 +1,4 @@
-module github.com/IceManGreen/crypto11
+module github.com/ThalesGroup/crypto11
 
 go 1.21.6
 
