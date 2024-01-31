@@ -83,11 +83,6 @@ func (key *SecretKey) NewBlockManagerCBC(iv []byte) (BlockManager, error) {
 	return key.newBlockManager(key.Cipher.CBCMech, iv)
 }
 
-// BlockSize returns the cipher's block size in bytes.
-func (bm *blockManager) BlockSize() int {
-	return bm.blockSize
-}
-
 // NewBlockManagerCBCPadding creates a new manager for block encryption/decryption operations using AES CBC with padding
 func (key *SecretKey) NewBlockManagerCBCPadding(iv []byte) (BlockManager, error) {
 	return key.newBlockManager(key.Cipher.CBCPKCSMech, iv)
@@ -98,6 +93,13 @@ func (key *SecretKey) NewBlockManagerCBCPadding(iv []byte) (BlockManager, error)
 func (key *SecretKey) BlockSize() int {
 	return key.Cipher.BlockSize
 }
+
+// BlockSize returns the cipher's block size in bytes.
+func (bm *blockManager) BlockSize() int {
+	return bm.blockSize
+}
+
+func (bm *blockManager) HasPadding() bool { return bm.mechanism == CipherAES.CBCPKCSMech }
 
 // Decrypt decrypts in one go the ciphertext into a clear text in return.
 // The ciphertext and the output buffers must overlap entirely or not at all.
