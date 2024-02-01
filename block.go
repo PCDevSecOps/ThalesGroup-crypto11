@@ -154,7 +154,7 @@ func (bm *blockManager) Decrypt(dst, src []byte) {
 // For more efficient operation, see NewCBCEncrypterCloser, NewCBCEncrypter or NewCBC.
 func (bm *blockManager) Encrypt(dst, src []byte) {
 	// mechanism
-	if bm.mechanism != CipherAES.CBCPKCSMech && len(src) != bm.blockSize {
+	if bm.mechanism != CipherAES.CBCPKCSMech && len(src) % bm.blockSize != 0 {
 		log.Printf("the size of the source buffer is '%d' bytes but must match a multiple of the block size of the current cipher: '%d' bytes", len(src), bm.blockSize)
 		return
 	}

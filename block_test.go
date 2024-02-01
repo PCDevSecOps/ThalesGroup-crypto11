@@ -60,7 +60,7 @@ func TestBlock(t *testing.T) {
 
 	iv, _ := makeIV(key.Cipher)
 
-	//t.Run("AES256 CBC", func(t *testing.T) { testCBC(t, key, iv) })
+	t.Run("AES256 CBC", func(t *testing.T) { testCBC(t, key, iv) })
 	t.Run("AES256 CBC", func(t *testing.T) { testCBCPadding(t, key, iv) })
 }
 
