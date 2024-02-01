@@ -22,7 +22,6 @@
 package crypto11
 
 import (
-	"crypto/rand"
 	"github.com/miekg/pkcs11"
 	"testing"
 
@@ -42,20 +41,25 @@ func TestBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	// get or generate a new temporary key for encryption / decryption operations in the pkcs11 store
-	var key *SecretKey
-	if ctx.cfg.Tpm {
-		//key, err = ctx.FindKey(nil, []byte(ctx.cfg.SecretKeyLabel))
-		key, err = ctx.FindKey(nil, []byte("aes0"))
-	} else {
-		keyType := pkcs11.CKK_AES
-		keySize := 256
-		id := make([]byte, 16)
-		rand.Read(id)
-		key, err = ctx.GenerateSecretKeyWithLabel(id, []byte("testblock"), keySize, Ciphers[keyType])
-		defer key.Delete()
-	}
+	key, found, err := findKeyOrCreate(ctx, "aes0", pkcs11.CKK_AES, 256)
+	//var key *SecretKey
+	//if ctx.cfg.Tpm {
+	//	//key, err = ctx.FindKey(nil, []byte(ctx.cfg.SecretKeyLabel))
+	//	key, err = ctx.FindKey(nil, []byte("aes0"))
+	//} else {
+	//	keyType := pkcs11.CKK_AES
+	//	keySize := 256
+	//	id := make([]byte, 16)
+	//	rand.Read(id)
+	//	key, err = ctx.GenerateSecretKeyWithLabel(id, []byte("testblock"), keySize, Ciphers[keyType])
+	//	defer key.Delete()
+	//}
 	if err != nil {
 		panic(err)
+	}
+	if ! found {
+		// so it was dynamically created
+		defer key.Delete()
 	}
 
 	iv, _ := makeIV(key.Cipher)

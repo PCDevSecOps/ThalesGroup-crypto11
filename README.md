@@ -209,13 +209,14 @@ Testing with a TPM and PKCS11
 -----------------------------
 
 You must know that tpm2-pkcs11 is much more limited than other libraries like softhsm2 for cryptographic operations.  
-The absence of the `C_GenerateKey` function support in tpm2-pkcs11 library is one example of the limitations.  
-As a consequence, all the tests involving the creation of keys will be skipped.
+The absence of the `C_GenerateKey` function in the tpm2-pkcs11 library is one example of the limitations.  
+However, some of the tests have been modified to support the tpm2-pkcs11 library's specificities.
 
 To test with a TPM, you need to :
 
 - install a virtual TPM or use a TPM on your machine
 - install the `libtpm2_pkcs11` library
+- create all the keys you need for the unit tests in the TPM (since C_Generate key is not supported)
 
 Configure :
 
@@ -223,11 +224,13 @@ Configure :
 {
   "Path" : "/usr/lib/x86_64-linux-gnu/libtpm2_pkcs11.so.1",
   "TokenLabel": "mylabel", 
-  "Pin": "mypin"
+  "Pin": "mypin",
+  "Tpm": true
 }
 ```
 
-Beware that a lot of unit tests may fail in this case. You must fine-tune your usecase for TPM usage.
+Fine tune the unit tests to use the keys you created in the previous step.  
+Beware that a lot of unit tests may fail otherwise. You must fine-tune your usecase for a TPM usage.
 
 Limitations
 ===========
