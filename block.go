@@ -35,6 +35,8 @@ import (
 // For a more efficient approach, check BlockModeCloser instead.
 type BlockManager interface {
 	cipher.Block
+
+	HasPadding() bool
 }
 
 type blockManager struct {
